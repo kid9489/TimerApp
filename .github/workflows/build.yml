@@ -3,75 +3,47 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container: kivy/buildozer:v1.5.0
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        
-    - name: Install system dependencies
+    - name: Fix permissions
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          python3-pip \
-          build-essential \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          autoconf \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libtinfo5 \
-          cmake \
-          libffi-dev \
-          libssl-dev \
-          libsdl2-dev \
-          libsdl2-image-dev \
-          libsdl2-mixer-dev \
-          libsdl2-ttf-dev \
-          libportmidi-dev
-        
-    - name: Install Buildozer and Cython
-      run: |
-        pip install buildozer cython
+        mkdir -p ~/.buildozer
+        chmod -R 777 ~/.buildozer
+        chmod -R 777 .
         
     - name: Build APK
       run: |
-        # Let buildozer automatically download and setup Android SDK/NDK
-        buildozer android debug
+        buildozer android debug 2>&1 | tee build.log
       env:
         BUILDOZER_WARN_ON_ROOT: 0
         
+    - name: Check build output
+      if: failure()
+      run: |
+        echo "=== Buildozer Spec ==="
+        cat buildozer.spec
+        echo "=== Build Log ==="
+        tail -100 build.log
+          
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: timer-app-apk
         path: bin/*.apk
         
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
+    - name: Upload Build Logs
+      if: failure()
+      uses: actions/upload-artifact@v4
       with:
-        files: bin/*.apk
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        body: |
-          自动构建的计时APP APK
-          构建时间: ${{ github.event.head_commit.timestamp }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: build-logs
+        path: build.log
