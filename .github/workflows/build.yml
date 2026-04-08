@@ -50,34 +50,9 @@ jobs:
       run: |
         pip install buildozer cython
         
-    - name: Setup Android SDK and accept licenses
-      run: |
-        mkdir -p ~/.buildozer/android/platform
-        cd ~/.buildozer/android/platform
-        
-        # Download command line tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip
-        mkdir -p android-sdk/cmdline-tools
-        mv cmdline-tools android-sdk/cmdline-tools/latest
-        
-        # Export paths
-        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
-        
-        # Accept all licenses automatically
-        yes | sdkmanager --licenses || true
-        
-        # Install required SDK components
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" || true
-        
-        # Set environment for subsequent steps
-        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-        echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-        echo "PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_ENV
-        
     - name: Build APK
       run: |
+        # Let buildozer automatically download and setup Android SDK/NDK
         buildozer android debug
       env:
         BUILDOZER_WARN_ON_ROOT: 0
